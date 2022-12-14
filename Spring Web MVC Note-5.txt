@@ -1,0 +1,372 @@
+Spring Web MVC-5
+==================
+Objective:
+Validation in Spring 
+
+
+
+make a simple maven project : springwebmvc5
+
+Update pom.xml file as:
+========================
+
+add parent for spring-boot-starter-parent as
+
+<!-- Parent pom is mandatory to control versions of child dependencies -->
+ <parent>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-parent</artifactId>
+	<version>2.1.6.RELEASE</version>
+	<relativePath/> 
+</parent>
+
+Add properties for Java-8 as:
+
+<properties>
+	<java.version>1.8</java.version>
+</properties>
+
+Add dependency as : spring-boot-starter-web   & tomcat-embed-jasper
+
+<!-- Spring web brings all required dependencies to build web application. -->
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-web</artifactId>
+</dependency> 
+<dependency>
+      <groupId>org.apache.tomcat.embed</groupId>
+      <artifactId>tomcat-embed-jasper</artifactId>
+      <scope>provided</scope>
+</dependency>
+
+
+===
+create a file "application.properties" under folder : src/main/resources as :
+
+spring.mvc.view.suffix=.jsp
+spring.mvc.view.prefix=/WEB-INF/views/
+server.port=8085
+
+=== make 3 folders :  under src/main
+a. src/main/webapp   b. src/main/webapp/WEB-INF  c. src/main/webapp/WEB-INF/views
+
+
+Create a simple java class MainApp.java under package :  com.pack
+
+
+package com.pack;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class MainApp {
+
+	public static void main(String[] args) {
+		SpringApplication.run(MainApp.class, args);
+	}
+
+}
+
+**@SpringBootApplication : it denotes as it is a springboot application , so when it's main method called, it can start the web container by executing method as :  SpringApplication.run(MainApp.class, args);
+
+
+=== Under resources folder : make 2 property files to indicate 3 regions (default , French(fr), German(de))
+
+messages.properties
+
+label.productName=Name Product in English
+label.quantity=Quantity in English
+label.category=Category in English
+label.button=Place Order in English
+
+
+messages_fr.properties
+
+label.productName=Name Product in French
+label.quantity=Quantity in French
+label.category=Category in French
+label.button=Place Order in French
+
+
+
+messages_de.properties
+
+label.productName=Name Product in German
+label.quantity=Quantity in German
+label.category=Category in German
+label.button=Place Order in German
+
+
+
+==== to make innernationlization , create a new class InternationalizationConfig under pkg :  com.pack.config
+In this confiugration , make beans For:
+a. MessageSource b. LocaleResolver  c. LocaleChangeInterceptor
+
+@Configuration
+public class InternationalizationConfig   implements WebMvcConfigurer{ 
+
+}
+
+Inside the class: create 3 beans as follows:
+
+@Bean
+public MessageSource messageSource() {
+	   ReloadableResourceBundleMessageSource messageSource = new ReloadableResourceBundleMessageSource();
+	   messageSource.setBasename("classpath:messages");
+	   messageSource.setDefaultEncoding("UTF-8");
+	   return messageSource;
+	  }
+
+
+//Create a SessionLocaleResolver object and set the default locale to English  return the SessionLocaleResolver object  
+@Bean
+public LocaleResolver localeResolver() {
+	    SessionLocaleResolver sessionLocaleResolver = new SessionLocaleResolver();
+  	    sessionLocaleResolver.setDefaultLocale(Locale.ENGLISH);
+	    return sessionLocaleResolver;
+}
+
+//Create LocaleChangeInterceptor object and set the parameter name as language and return the localeChangeInterceptor
+@Bean
+public LocaleChangeInterceptor localeChangeInterceptor() {
+	   LocaleChangeInterceptor localeChangeInterceptor = new LocaleChangeInterceptor();
+	   localeChangeInterceptor.setParamName("lang");
+	   return localeChangeInterceptor;
+
+}
+
+
+//register the LocaleChangeInterceptor
+@Override
+public void addInterceptors(InterceptorRegistry registry) {
+	   registry.addInterceptor(localeChangeInterceptor());
+   
+}
+
+
+
+
+
+--- Now create a model class : Order under packge : com.pack.beans
+
+package com.pack.beans;
+
+public class Order {
+private String productName;
+private int quantity;
+private String category;
+private int totalPrice;
+//add setter & getter
+}
+
+
+===Apply validation on Bean object
+
+For this , create a new validator class (OrderValidator) which is used to check the properties of bean class based on business rules.
+implement interface : Validator  and override 2 methods.
+
+package com.pack.controller;
+
+import org.springframework.stereotype.Component;
+import org.springframework.validation.Errors;
+import org.springframework.validation.ValidationUtils;
+import org.springframework.validation.Validator;
+
+import com.pack.beans.Order;
+
+@Component
+public class OrderValidator implements Validator{
+
+	@Override
+	public boolean supports(Class<?> clazz) {
+		return Order.class.equals(clazz);
+	}
+
+	@Override
+	public void validate(Object target, Errors errors) {
+		ValidationUtils.rejectIfEmptyOrWhitespace(errors, "productName", "productName.required", "ProductName is required.....");
+		ValidationUtils.rejectIfEmptyOrWhitespace(errors, "quantity", "quantity.required", "Quantity is required.....");
+		ValidationUtils.rejectIfEmptyOrWhitespace(errors, "category", "category.required", "Category is required.....");
+				
+		Order order = (Order)target;
+	    if ((order.getProductName().matches("^[A-Z]{1}[A-Za-z ]{3,10}$")) ==false) {
+	    	errors.rejectValue("productName","order.productName.invalid", "ProductName should contain 4 to 10 chars only, starting with uppercase");
+	    }
+        if(order.getQuantity()<=0)
+        {
+        	errors.rejectValue("quantity","order.quantity.invalid", "Quantity can not be zero or negative");
+        }
+        
+		
+	}
+
+}
+
+
+
+====
+---Now make a controller class :  OrderController class  under com.pack.controller package
+*** controller class will be as follows:
+
+package com.pack.controller;
+
+import java.util.Set;
+import java.util.TreeSet;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.stereotype.Controller;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.servlet.LocaleResolver;
+
+import com.pack.beans.Order;
+import com.pack.service.OrderService;
+
+@Controller
+public class OrderController {
+	@Autowired
+	OrderService service;
+	@Autowired
+	OrderValidator validator;
+	
+	@ModelAttribute("categories")
+	public Set<String> getCategoryList(){
+		Set<String> categories = new TreeSet<String>();
+		categories.add("Electronics");
+		categories.add("Mobiles");
+		categories.add("Utensils");
+		return categories;
+	}
+	
+	
+	@RequestMapping(value = "/makeorder" , method = RequestMethod.GET)
+	public String getMakeOrder( @ModelAttribute("order") Order order) {
+    	  	return "makeorder";
+	}
+    
+    @RequestMapping(value = "/placeorder" , method = RequestMethod.POST)
+    public String postPlaceOrder(@ModelAttribute("order") Order order , BindingResult results) {
+    	//custom validation approach
+    	validator.validate(order,results);
+    	if(results.hasErrors()) {
+    		return "makeorder";
+    	}
+    	else {
+    		if(service.placeOrder(order)) {
+    		   return"placeorder";
+    	     }
+    	    else {
+    		   return "makeorder";
+    	     }
+    	}
+    	
+    }
+}
+
+===========Design service layer as : OrderService
+package com.pack.service;
+
+import org.springframework.stereotype.Service;
+
+import com.pack.beans.Order;
+
+@Service
+public class OrderService {
+   
+	public boolean placeOrder(Order order) {
+		order.setTotalPrice(order.getQuantity()*100);
+		return true;
+	}
+}
+
+===================create the jsp file : makeorder.jsp under:   WEB-INF/views with springForm tags
+
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+    pageEncoding="ISO-8859-1"%>
+<%@ taglib prefix="sf" uri="http://www.springframework.org/tags/form" %>
+<%@ taglib prefix="spring" uri="http://www.springframework.org/tags" %>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Insert title here</title>
+<style>
+    .error {
+        color: red; 
+        font-weight: bold;
+    }
+</style>
+
+</head>
+<body bgcolor='cyan'>
+<sf:form name="orderForm" modelAttribute="order" action="placeorder"  method="POST" >
+<Table>
+<tr>
+<th><sf:label path="productName">
+<spring:message code="label.productName"/></sf:label></th> 
+<td><sf:input type='text' path='productName'/>
+<sf:errors path="productName" cssClass="error" />
+</td>
+</tr>
+<tr>
+<th><sf:label path="quantity">
+<spring:message code="label.quantity"/></sf:label></th> 
+<td><sf:input type='text' path='quantity'/>
+<sf:errors path="quantity" cssClass="error" />
+</td>
+</tr>
+<tr>
+<th><sf:label path="category">
+<spring:message code="label.category"/></sf:label></th> 
+<td><sf:select path='category' items ="${categories}"/>
+<sf:errors path="category" cssClass="error" />
+</td>
+</tr>
+<tr><th colspan="2">
+<input type='submit' value='<spring:message code="label.button"/>'></th></tr>
+</Table>
+</sf:form>
+</body>
+</html>
+
+
+
+====== And make a new jsp file : placeorder.jsp
+
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+    pageEncoding="ISO-8859-1"%>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Insert title here</title>
+</head>
+<body>
+<h1>Order is placed.........</h1>
+<b>Total price is ${order.totalPrice} Rs.</b>
+</body>
+</html>
+
+
+Now run application and test from web browser......
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

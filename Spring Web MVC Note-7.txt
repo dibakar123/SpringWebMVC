@@ -1,0 +1,129 @@
+Spring Web MVC :  Servlet Program
+
+Objectives:
+1. Servlet code
+2. Demo with doGet and doPost
+3. Handling RequestDispatcher 
+4. Handling JSP EL
+
+
+
+Make a new maven project:  servletwebapp
+
+add dependencies in pom.xml:
+-------------------
+<packaging>war</packaging>
+  <dependencies>
+    <dependency>
+    <groupId>javax.servlet</groupId>
+    <artifactId>javax.servlet-api</artifactId>
+    <version>3.1-b05</version>
+    <scope>provided</scope>
+    </dependency>
+</dependencies>
+
+update your maven project :  right click --> maven --> update project
+
+===make 2 folders under :
+a.  src/main/webapp   b. src/main/webapp/WEB-INF
+
+==make a file (web.xml) under WEB-INF
+<!DOCTYPE web-app PUBLIC
+ "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
+ "http://java.sun.com/dtd/web-app_2_3.dtd" >
+
+<web-app>
+  <display-name>Archetype Created Web Application</display-name>
+  
+</web-app>
+
+
+====== Add tomcat server in eclipse env
+
+== now create jsp file : index.jsp
+
+
+
+== now create a servlet program : LoginServlet.java
+package com.pack;
+
+import java.io.IOException;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+/**
+ * Servlet implementation class LoginServlet
+ */
+@WebServlet("/login")
+public class LoginServlet extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+  	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		
+	}
+	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException{
+		String uid = request.getParameter("uid");
+		String pwd = request.getParameter("pwd");
+		LoginService service = new LoginService();
+		if(service.checkLogin(uid, pwd)) {
+			RequestDispatcher rd = request.getRequestDispatcher("success.jsp");
+			request.setAttribute("name", uid);
+			rd.forward(request, response);
+			
+		}
+		else {
+			RequestDispatcher rd = request.getRequestDispatcher("index.jsp");
+			request.setAttribute("msg", "Login failed...try again !!!!!");
+			rd.forward(request, response);
+		}
+	}
+
+}
+
+
+==now create a service class : LoginService.java
+
+package com.pack;
+
+public class LoginService {
+
+	public boolean checkLogin(String uid, String pwd) {
+		return uid.equals(pwd);
+	}
+}
+
+== now create a jsp file :  success.jsp
+
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+    pageEncoding="ISO-8859-1" isELIgnored="false"%>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Insert title here</title>
+</head>
+<body>
+Welcome ${name}
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

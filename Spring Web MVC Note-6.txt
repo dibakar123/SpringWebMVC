@@ -1,0 +1,388 @@
+Spring Web MVC-6
+==================
+Objective:
+Validation in Spring with annotation and java validation
+
+
+
+make a simple maven project : springwebmvc6
+
+Update pom.xml file as:
+========================
+
+add parent for spring-boot-starter-parent as
+
+<!-- Parent pom is mandatory to control versions of child dependencies -->
+ <parent>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-parent</artifactId>
+	<version>2.1.6.RELEASE</version>
+	<relativePath/> 
+</parent>
+
+Add properties for Java-8 as:
+
+<properties>
+	<java.version>1.8</java.version>
+</properties>
+
+Add dependency as : spring-boot-starter-web   & tomcat-embed-jasper
+
+<!-- Spring web brings all required dependencies to build web application. -->
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-web</artifactId>
+</dependency> 
+<dependency>
+      <groupId>org.apache.tomcat.embed</groupId>
+      <artifactId>tomcat-embed-jasper</artifactId>
+      <scope>provided</scope>
+</dependency>
+
+
+===
+create a file "application.properties" under folder : src/main/resources as :
+
+spring.mvc.view.suffix=.jsp
+spring.mvc.view.prefix=/WEB-INF/views/
+server.port=8085
+
+=== make 3 folders :  under src/main
+a. src/main/webapp   b. src/main/webapp/WEB-INF  c. src/main/webapp/WEB-INF/views
+
+
+Create a simple java class MainApp.java under package :  com.pack
+
+
+package com.pack;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class MainApp {
+
+	public static void main(String[] args) {
+		SpringApplication.run(MainApp.class, args);
+	}
+
+}
+
+**@SpringBootApplication : it denotes as it is a springboot application , so when it's main method called, it can start the web container by executing method as :  SpringApplication.run(MainApp.class, args);
+
+
+=== Under resources folder : make 2 property files to indicate 3 regions (default , French(fr), German(de))
+
+messages.properties
+
+label.movieName=Movie Name in English	
+label.noOfTickets=No of Tickets in English
+label.circleType= Circle Type in English
+
+error.movieName=Movie name cannot be empty in English
+error.nonoOfTickets=No of Tickets cannot be empty in English
+error.noOfTickets.negative=No of Tickets should be greater than 0 in English
+
+messages_fr.properties
+
+label.movieName=Movie Name in French	
+label.noOfTickets=No of Tickets in French
+label.circleType= Circle Type in French
+
+error.movieName=Movie name cannot be empty in French
+error.nonoOfTickets=No of Tickets cannot be empty in French
+error.noOfTickets.negative=No of Tickets should be greater than 0 in French
+
+
+
+messages_de.properties
+
+label.movieName=Movie Name in German	
+label.noOfTickets=No of Tickets in German
+label.circleType= Circle Type in German
+
+error.movieName=Movie name cannot be empty in German
+error.nonoOfTickets=No of Tickets cannot be empty in German
+error.noOfTickets.negative=No of Tickets should be greater than 0 in German
+
+
+
+==== to make innernationlization , create a new class InternationalizationConfig under pkg :  com.pack.config
+In this confiugration , make beans For:
+a. MessageSource b. LocaleResolver  c. LocaleChangeInterceptor
+
+@Configuration
+public class InternationalizationConfig   implements WebMvcConfigurer{ 
+
+}
+
+Inside the class: create 4 beans as follows:
+
+@Bean
+public MessageSource messageSource() {
+	   ReloadableResourceBundleMessageSource messageSource = new ReloadableResourceBundleMessageSource();
+	   messageSource.setBasename("classpath:messages");
+	   messageSource.setDefaultEncoding("UTF-8");
+	   return messageSource;
+	  }
+
+
+//Create a SessionLocaleResolver object and set the default locale to English  return the SessionLocaleResolver object  
+@Bean
+public LocaleResolver localeResolver() {
+	    SessionLocaleResolver sessionLocaleResolver = new SessionLocaleResolver();
+  	    sessionLocaleResolver.setDefaultLocale(Locale.ENGLISH);
+	    return sessionLocaleResolver;
+}
+
+//Create LocaleChangeInterceptor object and set the parameter name as language and return the localeChangeInterceptor
+@Bean
+public LocaleChangeInterceptor localeChangeInterceptor() {
+	   LocaleChangeInterceptor localeChangeInterceptor = new LocaleChangeInterceptor();
+	   localeChangeInterceptor.setParamName("lang");
+	   return localeChangeInterceptor;
+
+}
+
+
+//register the LocaleChangeInterceptor
+@Override
+public void addInterceptors(InterceptorRegistry registry) {
+	   registry.addInterceptor(localeChangeInterceptor());
+   
+}
+
+
+@Bean
+public LocalValidatorFactoryBean validator() {
+    LocalValidatorFactoryBean bean = new LocalValidatorFactoryBean();
+    bean.setValidationMessageSource(messageSource());
+    return bean;
+}
+
+
+--- Now create a model class : Ticket under packge : com.pack.beans
+
+package com.pack.beans;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotBlank;
+
+public class Ticket {
+		@NotBlank(message = "{error.movieName}")
+		private String movieName;
+		@Min(value = 1, message = "{error.noOfTickets.negative}")
+		private int noOfTickets;
+		private String circleType;
+		
+		public String getMovieName() {
+			return movieName;
+		}
+		public void setMovieName(String movieName) {
+			this.movieName = movieName;
+		}
+		public int getNoOfTickets() {
+			return noOfTickets;
+		}
+		public void setNoOfTickets(int noOfTickets) {
+			this.noOfTickets = noOfTickets;
+		}
+		public String getCircleType() {
+			return circleType;
+		}
+		public void setCircleType(String circleType) {
+			this.circleType = circleType;
+		}
+		
+}	
+		
+
+
+====
+---Now make a controller class :  TicketController class  under com.pack.controller package
+*** controller class will be as follows:
+
+package com.pack.controller;
+
+import java.util.Set;
+import javax.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import com.pack.beans.Ticket;
+import com.pack.service.TicketService;
+
+@Controller
+public class TicketController {
+	@Autowired
+	TicketService service;
+	
+	
+	@ModelAttribute("circleList")
+	public Set<String> getCategoryList(){
+		return service.getCircleList();
+	}
+	
+	
+	@RequestMapping(value = "/showpage" , method = RequestMethod.GET)
+	public String getMakeOrder( @ModelAttribute("ticket") Ticket ticket) {
+    	  	return "moviepage";
+	}
+    
+    @RequestMapping(value = "/bookticket" , method = RequestMethod.POST) 
+    public String postPlaceOrder(@Valid @ModelAttribute("ticket") Ticket ticket , BindingResult results , Model model) {
+    	   	
+    	if(results.hasErrors()) {
+    		return "moviepage";
+    	}
+    	else {
+    		  int price = service.bookTicket(ticket);
+    		  model.addAttribute("price",price);
+    		  return"success";
+    	     }
+    }
+    
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+===========Design service layer as : TicketService
+package com.pack.service;
+
+package com.pack.service;
+
+import java.util.Set;
+import java.util.TreeSet;
+
+import org.springframework.stereotype.Service;
+import com.pack.beans.Ticket;
+
+@Service
+public class TicketService {
+   
+	public int bookTicket(Ticket ticket) {
+		if(ticket.getCircleType().equals("king"))
+		    return 500*ticket.getNoOfTickets();
+		else
+			return 300*ticket.getNoOfTickets();
+	}
+	
+	public Set<String> getCircleList(){
+		Set<String> cirlces = new TreeSet<String>();
+		cirlces.add("king");
+		cirlces.add("queen");
+		return cirlces;
+	}
+}
+
+
+===================create the jsp file : moviepage.jsp under:   WEB-INF/views with springForm tags
+
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+    pageEncoding="ISO-8859-1"%>
+<%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
+<%@ taglib prefix="spring" uri="http://www.springframework.org/tags" %>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Insert title here</title>
+<style>
+    .error {
+        color: red; 
+        font-weight: bold;
+    }
+</style>
+
+</head>
+<body bgcolor='cyan'>
+<div align="center">
+	<h1>
+		<center> Movie Ticket Booking </center>
+	</h1>
+	<a href="/showpage?language=en">English</a>|
+	<a href="/showpage?language=de">German</a>|
+	<a href="/showpage?language=fr">French</a>
+</div>
+
+	<form:form method="post" modelAttribute="ticket" action="bookticket">
+
+		<table align="center">
+
+			<tr>
+				<td id="id1"><spring:message code="label.movieName" /></td>
+				<td id="id2"><form:input path="movieName" id="movieName" /></td>
+				<td id=id3><form:errors path="movieName"></form:errors></td>
+				
+			</tr>
+
+			<tr>
+				<td id="id4"><spring:message code="label.circleType" /></td>
+				<td id="id5"><form:select path="circleType"
+						items="${circleList}" id="expenseType"/></td>
+				
+			</tr>
+			<tr>
+				<td id="id7"><spring:message code="label.noOfTickets" /></td>
+				<td id="id8"><form:input path="noOfTickets" id="noOfTickets" /></td>
+				<td id=id9><form:errors path="noOfTickets"></form:errors></td>
+			</tr>
+			<tr>
+				<td><input type="Submit" name="submit" value="Calculate Cost" /></td>
+				<td><input type="reset" name="reset" value="Clear" /></td>
+			</tr>
+			
+		</table>
+	</form:form>
+
+</body>
+</html>
+
+====== And make a new jsp file : placeorder.jsp
+
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+    pageEncoding="ISO-8859-1"%>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Insert title here</title>
+</head>
+<body>
+<h1>Ticket is booked.........</h1>
+<b>Total booking price is ${price} Rs.</b>
+</body>
+</html>
+
+
+Now run application and test from web browser......
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

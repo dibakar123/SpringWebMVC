@@ -1,0 +1,265 @@
+Spring Web MVC-4
+==================
+Objective:
+Internationalization
+
+
+
+make a simple maven project : springwebmvc4
+
+Update pom.xml file as:
+========================
+
+add parent for spring-boot-starter-parent as
+
+<!-- Parent pom is mandatory to control versions of child dependencies -->
+ <parent>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-parent</artifactId>
+	<version>2.1.6.RELEASE</version>
+	<relativePath/> 
+</parent>
+
+Add properties for Java-8 as:
+
+<properties>
+	<java.version>1.8</java.version>
+</properties>
+
+Add dependency as : spring-boot-starter-web   & tomcat-embed-jasper
+
+<!-- Spring web brings all required dependencies to build web application. -->
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-web</artifactId>
+</dependency> 
+<dependency>
+      <groupId>org.apache.tomcat.embed</groupId>
+      <artifactId>tomcat-embed-jasper</artifactId>
+      <scope>provided</scope>
+</dependency>
+
+
+===
+create a file "application.properties" under folder : src/main/resources as :
+
+spring.mvc.view.suffix=.jsp
+spring.mvc.view.prefix=/WEB-INF/views/
+server.port=8085
+
+=== make 3 folders :  under src/main
+a. src/main/webapp   b. src/main/webapp/WEB-INF  c. src/main/webapp/WEB-INF/views
+
+
+Create a simple java class MainApp.java under package :  com.pack
+
+
+package com.pack;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class MainApp {
+
+	public static void main(String[] args) {
+		SpringApplication.run(MainApp.class, args);
+	}
+
+}
+
+
+=== Under resources folder : make 2 property files to indicate 3 regions (default , French(fr), German(de))
+
+messages.properties
+
+label.name=Name in English
+label.password=Password in English
+
+
+messages_fr.properties
+
+label.name=Name in French
+label.password=Password in French
+
+
+
+messages_de.properties
+
+label.name=Name in German
+label.password=Password in German
+
+
+
+==== to make innernationlization , create a new class InternationalizationConfig under pkg :  com.pack.config
+In this confiugration , make beans For:
+a. MessageSource b. LocaleResolver  c. LocaleChangeInterceptor
+
+@Configuration
+public class InternationalizationConfig   implements WebMvcConfigurer{ 
+
+}
+
+Inside the class: create 3 beans as follows:
+
+@Bean
+public MessageSource messageSource() {
+	   ReloadableResourceBundleMessageSource messageSource = new ReloadableResourceBundleMessageSource();
+	   messageSource.setBasename("classpath:messages");
+	   messageSource.setDefaultEncoding("UTF-8");
+	   return messageSource;
+	  }
+
+
+//Create a SessionLocaleResolver object and set the default locale to English  return the SessionLocaleResolver object  
+@Bean
+public LocaleResolver localeResolver() {
+	    SessionLocaleResolver sessionLocaleResolver = new SessionLocaleResolver();
+  	    sessionLocaleResolver.setDefaultLocale(Locale.ENGLISH);
+	    return sessionLocaleResolver;
+}
+
+//Create LocaleChangeInterceptor object and set the parameter name as language and return the localeChangeInterceptor
+@Bean
+public LocaleChangeInterceptor localeChangeInterceptor() {
+	   LocaleChangeInterceptor localeChangeInterceptor = new LocaleChangeInterceptor();
+	   localeChangeInterceptor.setParamName("lang");
+	   return localeChangeInterceptor;
+
+}
+
+
+//register the LocaleChangeInterceptor
+@Override
+public void addInterceptors(InterceptorRegistry registry) {
+	   registry.addInterceptor(localeChangeInterceptor());
+   
+}
+
+
+
+**@SpringBootApplication : it denotes as it is a springboot application , so when it's main method called, it can start the web container by executing method as :  SpringApplication.run(MainApp.class, args);
+
+--- Now create a model class : User under packge : com.pack.beans
+
+package com.pack.beans;
+
+public class User {
+private String uid;
+private String pwd;
+//add setter & getter
+}
+
+---------------  Make service layer
+
+@Service
+public class LoginService {
+   
+	public boolean checkLogin(User user) {
+		if(user.getUid().equals("sai") && user.getPwd().equals("ram")) 
+    		return true;
+        else
+    		return false;
+	}
+}
+
+
+---Now make a LoginController class  under com.pack.controller package
+Now design a method there which returns a String values indicates a JSP file name(login.jsp).
+
+
+
+*** controller class will be as follows:
+
+package com.pack.controller;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+
+@Controller
+public class LoginController {
+
+
+@RequestMapping(value = "/login" , method = RequestMethod.GET)
+public String getLoginPage( @ModelAttribute User user) {
+		return "login";
+	}
+    
+
+@RequestMapping(value = "/login" , method = RequestMethod.POST)
+public String postLoginPage(@ModelAttribute User user) {
+    	if(user.getUid().equals("sai") && user.getPwd().equals("ram")) {
+    		return "success";
+    	}
+    	else {
+    		return "login";
+    	}
+    	
+    }
+}
+
+*****create the jsp file : login.jsp  under location:   WEB-INF/views with springForm tags
+
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+    pageEncoding="ISO-8859-1"%>
+<%@ taglib prefix="sf" uri="http://www.springframework.org/tags/form" %>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Insert title here</title>
+</head>
+<body bgcolor='cyan'>
+<sf:form name="loginForm" modelAttribute="user" action="login"  method="POST" >
+<Table>
+<tr>
+<th><sf:label path="uid">Userid:</sf:label></th> 
+<td><sf:input type='text' path='uid'/></td>
+</tr>
+<tr>
+<th><sf:label path="pwd">Password:</sf:label></th> 
+<td><sf:input type='password' path='pwd'/></td>
+</tr>
+<tr><th colspan="2">
+<input type='submit' value='Login'></th></tr>
+</Table>
+</sf:form>
+</body>
+</html>
+
+
+
+
+
+======
+
+And make a new jsp file : success.jsp
+
+<h1>Welcome ${user.uid} to Spring Boot World.........</h1>
+
+
+Now run application and test from web browser......
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
